@@ -14,6 +14,7 @@ Stages:
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
   compare   before/after session calibration on held-out DNA-Rendering views, for the page's sliders
   hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
+  teaser    animated Fig. 1 (labelled, 1920 x 960) from the newest TeaserLive_0678_02 run
 """
 import argparse
 import json
@@ -35,6 +36,8 @@ LIVE = "pv/runs/20261119_0440_SGT_Live0013_4GPU_Laptop/smooth"
 ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
 SHOWCASE_GLOB = "pv/runs/*_SGT_Showcase_0678_02"
+TEASER_GLOB = "pv/runs/*_SGT_TeaserLive_0678_02"  # made by pv/teaser_live (animated paper Fig. 1)
+TEASER_POSTER_S = 1.5  # source frame 90, the paper's Fig. 1 frame
 HERO_CROP = "crop=540:720:240:200"  # 3:4 window holding the performer over both 0678_02 sequences
 NSC_GLOB = "pv/runs/*_SGT_NSC_Slider_Candidates"  # made by pv/offline/render_nsc_slider.py
 NSC_SLIDES = ("0379_09_cam25", "0536_06_cam23", "0657_05_cam22")  # visually clearest of its eight candidates
@@ -233,7 +236,19 @@ def hero(root):
         print(f"hero_{name}.mp4 from {run.name}/{name}: {n} frames")
 
 
-STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, "compare": compare, "hero": hero}
+def teaser(root):
+    runs = sorted(root.glob(TEASER_GLOB))
+    if not runs:
+        raise SystemExit(f"no {TEASER_GLOB} run")
+    out = VIDEOS / "teaser_live.mp4"
+    # stream copy keeps the run's encode; faststart lets the page start playing before the whole file arrives
+    ffmpeg("-i", str(runs[-1] / "teaser_live_web.mp4"), "-c", "copy", "-an", "-movflags", "+faststart", str(out))
+    ffmpeg("-ss", str(TEASER_POSTER_S), "-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / "teaser_live.jpg"))
+    print(f"teaser_live.mp4 from {runs[-1].name}")
+
+
+STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, "compare": compare, "hero": hero,
+          "teaser": teaser}
 
 
 def main():

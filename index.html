@@ -89,7 +89,9 @@
 <section class="teaser">
   <div class="container wide">
     <figure class="reveal">
-      <img src="static/images/teaser.jpg" alt="Eight studio cameras capture a performer; the server sends compressed tokens to a laptop that restores them into a free-viewpoint 3D human" width="2132" height="1098">
+      <video class="autoplay" autoplay muted loop playsinline preload="auto" poster="static/images/teaser_live.jpg" width="1920" height="960" aria-label="Eight studio cameras capture a performer; the server sends compressed tokens to a laptop that restores them into a free-viewpoint 3D human">
+        <source src="static/videos/teaser_live.mp4" type="video/mp4">
+      </video>
       <figcaption>
         <b>HoloSplat streams human-centric volumetric video live via compact tokens instead of explicit 3D Gaussians.</b>
         Server-side token compression sends 22.8&times; less data than float32 Gaussians, client-side token restoration

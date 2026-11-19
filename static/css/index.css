@@ -172,7 +172,7 @@ a.button:hover { background: #000; text-decoration: none; transform: translateY(
 
 /* Teaser */
 .teaser { padding-top: 56px; }
-.teaser figure img { border-radius: 14px; box-shadow: var(--shadow); }
+.teaser figure img, .teaser figure video { border-radius: 14px; box-shadow: var(--shadow); }
 
 .stats {
   list-style: none;
