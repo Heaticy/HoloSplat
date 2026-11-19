@@ -12,9 +12,9 @@ for (const button of document.querySelectorAll("button[data-copy]")) {
   });
 }
 
-// Looping clips play only while on screen.
+// Looping clips play only while on screen. The slider's hidden source video is driven by the slider instead.
 function isShown(video) {
-  return !video.closest("[hidden]") && !video.classList.contains("slider-source");
+  return !video.closest("[hidden]");
 }
 const onScreen = new Set();
 const playObserver = new IntersectionObserver((entries) => {
@@ -24,7 +24,7 @@ const playObserver = new IntersectionObserver((entries) => {
     else target.pause();
   }
 }, { threshold: 0.25 });
-for (const video of document.querySelectorAll("video[loop]")) {
+for (const video of document.querySelectorAll("video[loop]:not(.slider-source)")) {
   video.removeAttribute("autoplay");
   playObserver.observe(video);
 }
@@ -60,7 +60,8 @@ for (const row of document.querySelectorAll("[data-scenes]")) {
     video.poster = button.dataset.poster;
     video.querySelector("source").src = button.dataset.src;
     video.load();
-    if (onScreen.has(video)) video.play().catch(() => {});
+    // the slider's video is driven by the slider, which is on screen when its buttons are clicked
+    if (onScreen.has(video) || video.classList.contains("slider-source")) video.play().catch(() => {});
   }));
 }
 

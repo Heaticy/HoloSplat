@@ -217,12 +217,19 @@
         </video>
       </figure>
       <figure class="slider reveal" data-slider>
-        <video class="slider-source" muted loop playsinline preload="metadata" src="static/videos/compare_nsc.mp4"></video>
-        <canvas aria-label="Before and after session calibration, same frame and viewpoint; drag to compare"></canvas>
-        <input type="range" min="0" max="100" value="50" aria-label="Divider position">
-        <span class="slider-label left">Before</span>
-        <span class="slider-label right">After calibration</span>
-        <figcaption>Pro tier, same frame, same free viewpoint. Drag the divider.</figcaption>
+        <div class="scene-row" data-scenes>
+          <button aria-pressed="true" data-src="static/videos/compare_0379_09_cam25.mp4" data-poster="static/images/compare_0379_09_cam25.jpg">0379_09</button>
+          <button aria-pressed="false" data-src="static/videos/compare_0536_06_cam23.mp4" data-poster="static/images/compare_0536_06_cam23.jpg">0536_06</button>
+          <button aria-pressed="false" data-src="static/videos/compare_0657_05_cam22.mp4" data-poster="static/images/compare_0657_05_cam22.jpg">0657_05</button>
+        </div>
+        <div class="slider-view">
+          <video class="slider-source" muted loop playsinline preload="metadata"><source src="static/videos/compare_0379_09_cam25.mp4" type="video/mp4"></video>
+          <canvas width="450" height="768" aria-label="Before and after session calibration, same frame and viewpoint; drag to compare"></canvas>
+          <input type="range" min="0" max="100" value="50" aria-label="Divider position">
+          <span class="slider-label left">Before calibration</span>
+          <span class="slider-label right">After calibration</span>
+        </div>
+        <figcaption>Held-out view on DNA-Rendering, Pro tier, same frame and viewpoint, at half speed. Drag the divider.</figcaption>
       </figure>
     </div>
   </div>

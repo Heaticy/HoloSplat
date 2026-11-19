@@ -8,8 +8,10 @@ Source of <https://heaticy.github.io/HoloSplat/>, served by GitHub Pages from th
 - `tools/update_assets.py`: rebuilds `static/images/*.jpg` and `static/videos/*.mp4`. Stages (`--stage`, default all):
   `figures` crops paper figures from `paper/arxiv/HoloSplat_arxiv.pdf` (run `make -C paper arxiv` first);
   `video` and `clips` take the narrated video `pv/final/out/holosplat_pv_web.mp4` and cut the looping clips at its
-  white fades (the script stops if the segment count changes, so update `CLIPS` after a new cut); `orbits` and
-  `compare` encode the live 0013_08 session renders; `hero` encodes the newest `pv/runs/*_SGT_Showcase_0678_02`
+  white fades, matching each clip to the segment that looks like its current poster (the script stops if no segment
+  clearly matches); `orbits` encodes the live 0013_08 session renders; `compare` takes the DNA-Rendering
+  before/after-calibration clips listed in `NSC_SLIDES` from the newest `pv/runs/*_SGT_NSC_Slider_Candidates` run
+  (made by `pv/offline/render_nsc_slider.py`); `hero` encodes the newest `pv/runs/*_SGT_Showcase_0678_02`
   run (made by `pv/offline/render_showcase.py`). Run it from the RealTime-4DGS root with
   `methods/pointsplat/.venv/bin/python web/tools/update_assets.py`, then check the images and clips before committing.
 

@@ -12,7 +12,7 @@ Stages:
   clips     looping clips cut from the narrated video; segments are found at its white fades and each clip is
             matched to the segment that looks like its current poster, so a re-cut PV needs no index changes
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
-  compare   before/after session calibration, side by side, for the page's slider
+  compare   before/after session calibration on held-out DNA-Rendering views, for the page's sliders
   hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
 """
 import argparse
@@ -36,6 +36,8 @@ ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
 SHOWCASE_GLOB = "pv/runs/*_SGT_Showcase_0678_02"
 HERO_CROP = "crop=540:720:240:200"  # 3:4 window holding the performer over both 0678_02 sequences
+NSC_GLOB = "pv/runs/*_SGT_NSC_Slider_Candidates"  # made by pv/offline/render_nsc_slider.py
+NSC_SLIDES = ("0379_09_cam25", "0536_06_cam23", "0657_05_cam22")  # visually clearest of its eight candidates
 LOOP_FADE = 5  # frames of fade-out at the end and fade-in at the start of the dynamic orbit (2 x 5 frames at 30 fps)
 X264 = ["-c:v", "libx264", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"]
 
@@ -202,14 +204,17 @@ def orbits(root):
 
 
 def compare(root):
-    """Before | after session calibration, Pro, same camera path; the page splits it with a slider."""
-    before = root / ORBIT.format(arm="calibrated_before", tier="pro") / "%06d.png"
-    after = root / ORBIT.format(arm="calibrated", tier="pro") / "%06d.png"
-    out = VIDEOS / "compare_nsc.mp4"
-    ffmpeg("-framerate", "30", "-i", str(before), "-framerate", "30", "-i", str(after), "-filter_complex",
-           f"[0]{ORBIT_CROP}[b];[1]{ORBIT_CROP}[a];[b][a]hstack", *X264, "-crf", "18", str(out))
-    ffmpeg("-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / "compare_nsc.jpg"))
-    print("compare_nsc.mp4")
+    """Before | after session calibration on held-out DNA-Rendering views (Pro); the page splits each with a slider.
+    The source clips are 60 frames, so they are slowed down 2x to give the eye time to compare."""
+    runs = sorted(root.glob(NSC_GLOB))
+    if not runs:
+        raise SystemExit(f"no {NSC_GLOB} run")
+    for name in NSC_SLIDES:
+        source = runs[-1] / name / "before_after.mp4"
+        out = VIDEOS / f"compare_{name}.mp4"
+        ffmpeg("-i", str(source), "-vf", "setpts=2*PTS", "-r", "30", *X264, "-crf", "18", str(out))
+        ffmpeg("-ss", "1", "-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / f"compare_{name}.jpg"))
+        print(f"compare_{name}.mp4 from {runs[-1].name}")
 
 
 def hero(root):
