@@ -34,6 +34,7 @@ ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
 SHOWCASE_GLOB = "pv/runs/*_SGT_Showcase_0678_02"
 HERO_CROP = "crop=540:720:240:200"  # 3:4 window holding the performer over both 0678_02 sequences
+LOOP_FADE = 5  # frames of fade-out at the end and fade-in at the start of the dynamic orbit (2 x 5 frames at 30 fps)
 X264 = ["-c:v", "libx264", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"]
 
 # name: (page, caption label, left, top, right in PDF points, render dpi, max output width)
@@ -152,9 +153,9 @@ def clips(root):
         print(f"clip_{name}.mp4 {end - start - 2 * TRIM_S:.1f}s")
 
 
-def encode_frames(pattern, out, vf, crf=21):
+def encode_frames(pattern, out, vf, crf=21, poster_s=0):
     ffmpeg("-framerate", "30", "-i", str(pattern), "-vf", vf, *X264, "-crf", str(crf), str(out))
-    ffmpeg("-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / f"{out.stem}.jpg"))
+    ffmpeg("-ss", str(poster_s), "-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / f"{out.stem}.jpg"))
 
 
 def orbits(root):
@@ -180,9 +181,14 @@ def hero(root):
         raise SystemExit(f"no {SHOWCASE_GLOB} run")
     run = runs[-1]
     for name in ("dynamic_orbit", "bullet_time"):
-        meta = json.loads((run / name / "meta.json").read_text())
-        encode_frames(run / name / "%06d.png", VIDEOS / f"hero_{name}.mp4", HERO_CROP, crf=19)
-        print(f"hero_{name}.mp4 from {run.name}/{name}: {len(meta['frames'])} frames")
+        n = len(json.loads((run / name / "meta.json").read_text())["frames"])
+        vf, poster_s = HERO_CROP, 0
+        if name == "dynamic_orbit":
+            # the dance runs once, so the loop point jumps in time: dip through black over 0.3 s to hide it
+            vf += f",fade=t=in:start_frame=0:nb_frames={LOOP_FADE},fade=t=out:start_frame={n - LOOP_FADE}:nb_frames={LOOP_FADE}"
+            poster_s = 1
+        encode_frames(run / name / "%06d.png", VIDEOS / f"hero_{name}.mp4", vf, crf=19, poster_s=poster_s)
+        print(f"hero_{name}.mp4 from {run.name}/{name}: {n} frames")
 
 
 STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, "compare": compare, "hero": hero}
