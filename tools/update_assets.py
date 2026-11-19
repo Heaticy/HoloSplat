@@ -9,7 +9,8 @@ the images and clips before committing.
 Stages:
   figures   paper figures cropped from the arXiv build above their captions
   video     the narrated video and its poster
-  clips     looping clips cut from the narrated video (segments are found at its white fades)
+  clips     looping clips cut from the narrated video; segments are found at its white fades and each clip is
+            matched to the segment that looks like its current poster, so a re-cut PV needs no index changes
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
   compare   before/after session calibration, side by side, for the page's slider
   hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
@@ -22,6 +23,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageChops
 
 WEB = Path(__file__).resolve().parents[1]
@@ -46,9 +48,9 @@ FIGURES = {
 }
 
 # The narrated video is title, problem, live card, warm-up, live, method card, overview, M0-M7 with the
-# compression and recovery shots, comparison cards and shots, summary, ending: 28 segments between white fades.
-SEGMENTS = 28
+# compression and recovery shots, comparison cards and shots, summary, ending, joined by white fades.
 # name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the slide title and subtitle.
+# The index (in the 2026-11-19 cut) is used only for a clip that has no poster yet; otherwise the clip is matched.
 CLIPS = {
     "live": (4, 0, 70, 1920, 890),
     "split": (7, 0, 150, 1920, 800),
@@ -64,6 +66,7 @@ CLIPS = {
     "cmp_ff_b": (23, 0, 130, 1920, 776),
 }
 TRIM_S = 0.1  # skip the fade frames at both ends of a segment
+MATCH_W, MATCH_RATIO = 160, 0.6  # thumbnail width; the best segment must differ < 0.6 x as much as the runner-up
 
 
 def ffmpeg(*args):
@@ -136,15 +139,49 @@ def segments(root):
     if not runs or runs[-1][1] < times[-1]:
         runs.append((times[-1], times[-1]))
     found = [(a[1], b[0]) for a, b in zip(runs, runs[1:])]
-    if len(found) != SEGMENTS:
-        raise SystemExit(f"expected {SEGMENTS} segments in {PV_VIDEO}, found {len(found)}: update CLIPS")
     return found
+
+
+def pv_frame(root, t):
+    """Grey 480x270 frame of the narrated video at t seconds."""
+    raw = subprocess.check_output(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(root / PV_VIDEO), "-frames:v", "1",
+                                   "-vf", "scale=480:270", "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+    return Image.frombytes("L", (480, 270), raw)
+
+
+def thumb(im, w, h):
+    return np.asarray(im.convert("L").resize((MATCH_W, round(MATCH_W * h / w)), Image.BILINEAR), dtype=np.float32)
+
+
+def assign(root, spans):
+    """Segment index of each clip: the segment whose frame 1 s before its end (where the poster is taken) best
+    matches the clip's current poster under the clip's crop."""
+    frames = [pv_frame(root, max(start, end - TRIM_S - 1)) for start, end in spans]
+    picks = {}
+    for name, (index, x, y, w, h) in CLIPS.items():
+        poster = IMAGES / f"clip_{name}.jpg"
+        if not poster.exists():
+            picks[name] = index
+            continue
+        ref = thumb(Image.open(poster), w, h)
+        box = (x // 4, y // 4, (x + w) // 4, (y + h) // 4)
+        scores = sorted((float(np.abs(thumb(f.crop(box), w, h) - ref).mean()), i) for i, f in enumerate(frames))
+        (best, i), (second, _) = scores[0], scores[1]
+        print(f"clip_{name}: segment {i} ({spans[i][0]:.1f}-{spans[i][1]:.1f} s), difference {best:.1f}, next {second:.1f}")
+        if best > MATCH_RATIO * second:
+            raise SystemExit(f"clip_{name}: no segment of {PV_VIDEO} clearly matches its poster; set its index in CLIPS "
+                             "and delete the poster")
+        picks[name] = i
+    if len(set(picks.values())) != len(picks):
+        raise SystemExit(f"two clips matched the same segment: {picks}")
+    return picks
 
 
 def clips(root):
     spans = segments(root)
-    for name, (index, x, y, w, h) in CLIPS.items():
-        start, end = spans[index]
+    picks = assign(root, spans)
+    for name, (_, x, y, w, h) in CLIPS.items():
+        start, end = spans[picks[name]]
         out = VIDEOS / f"clip_{name}.mp4"
         ffmpeg("-ss", f"{start + TRIM_S:.2f}", "-to", f"{end - TRIM_S:.2f}", "-i", str(root / PV_VIDEO),
                "-vf", f"crop={w}:{h}:{x}:{y},scale=1280:-2", *X264, "-crf", "26", str(out))
