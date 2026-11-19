@@ -1,12 +1,21 @@
-"""Regenerate the page's images and videos from the arXiv PDF and the supplementary-video outputs.
+"""Regenerate the page's images and videos from the arXiv PDF, the supplementary video and the PV renders.
 
-    <root>/methods/pointsplat/.venv/bin/python tools/update_assets.py [--root <RealTime-4DGS checkout>]
+    <root>/methods/pointsplat/.venv/bin/python web/tools/update_assets.py [--root <RealTime-4DGS>] [--stage ...]
 
 <root> defaults to the parent of this repository (it is the `web/` submodule of RealTime-4DGS).
-Needs pdftoppm, pdftotext and ffmpeg. Figures are cropped from the arXiv build above their captions,
-so re-run after `make -C paper arxiv` or a new PV cut, then look at the images before committing.
+Needs pdftoppm, pdftotext and ffmpeg. Re-run after `make -C paper arxiv` or a new PV cut, then look at
+the images and clips before committing.
+
+Stages:
+  figures   paper figures cropped from the arXiv build above their captions
+  video     the narrated video and its poster
+  clips     looping clips cut from the narrated video (segments are found at its white fades)
+  orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
+  compare   before/after session calibration, side by side, for the page's slider
+  hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
 """
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -20,9 +29,12 @@ IMAGES = WEB / "static" / "images"
 VIDEOS = WEB / "static" / "videos"
 PDF = "paper/arxiv/HoloSplat_arxiv.pdf"
 PV_VIDEO = "pv/final/out/holosplat_pv_web.mp4"
-PV_POSTER_S = 22  # live-demo shot of the Pro tier
-ORBITS = "pv/runs/20261119_0440_SGT_Live0013_4GPU_Laptop/smooth/calibrated/tiers/{tier}/orbit360"
+LIVE = "pv/runs/20261119_0440_SGT_Live0013_4GPU_Laptop/smooth"
+ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
+SHOWCASE_GLOB = "pv/runs/*_SGT_Showcase_0678_02"
+HERO_CROP = "crop=540:720:240:200"  # 3:4 window holding the performer over both 0678_02 sequences
+X264 = ["-c:v", "libx264", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"]
 
 # name: (page, caption label, left, top, right in PDF points, render dpi, max output width)
 FIGURES = {
@@ -31,6 +43,30 @@ FIGURES = {
     "method": (5, "3.", 50.0, 30.0, 562.0, 300, 2000),
     "qualitative": (8, "6.", 50.0, 28.0, 562.0, 300, 2000),
 }
+
+# The narrated video is title, problem, live card, warm-up, live, method card, overview, M0-M7 with the
+# compression and recovery shots, comparison cards and shots, summary, ending: 28 segments between white fades.
+SEGMENTS = 28
+# name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the slide title and subtitle.
+CLIPS = {
+    "live": (4, 0, 70, 1920, 890),
+    "split": (7, 0, 150, 1920, 800),
+    "prune": (8, 0, 150, 1920, 800),
+    "pca": (9, 0, 150, 1920, 800),
+    "anchors": (10, 0, 150, 1920, 800),
+    "restore": (13, 0, 150, 1920, 800),
+    "nsc": (15, 0, 150, 1920, 800),
+    "tiers": (16, 0, 150, 1920, 800),
+    "cmp_stream_a": (19, 0, 130, 1920, 776),
+    "cmp_stream_b": (20, 0, 130, 1920, 776),
+    "cmp_ff_a": (22, 0, 130, 1920, 776),
+    "cmp_ff_b": (23, 0, 130, 1920, 776),
+}
+TRIM_S = 0.1  # skip the fade frames at both ends of a segment
+
+
+def ffmpeg(*args):
+    subprocess.check_call(["ffmpeg", "-v", "error", "-y", *args])
 
 
 def caption_top(pdf, page, label):
@@ -44,7 +80,7 @@ def caption_top(pdf, page, label):
 
 
 def crop_figure(pdf, tmp, name, page, label, left, top, right, dpi, maxw):
-    stem = Path(tmp) / f"{name}"
+    stem = Path(tmp) / name
     subprocess.check_call(["pdftoppm", "-f", str(page), "-l", str(page), "-r", str(dpi), "-singlefile", "-png", pdf, str(stem)])
     im = Image.open(f"{stem}.png").convert("RGB")
     s = dpi / 72
@@ -60,34 +96,107 @@ def crop_figure(pdf, tmp, name, page, label, left, top, right, dpi, maxw):
     print(f"{name}.jpg {im.size[0]}x{im.size[1]}")
 
 
-def ffmpeg(*args):
-    subprocess.check_call(["ffmpeg", "-v", "error", "-y", *args])
+def figures(root):
+    with tempfile.TemporaryDirectory(prefix="lichf_holosplat_") as tmp:
+        for name, spec in FIGURES.items():
+            crop_figure(str(root / PDF), tmp, name, *spec)
+
+
+def video(root):
+    shutil.copy2(root / PV_VIDEO, VIDEOS / "holosplat.mp4")
+    start, end = segments(root)[0]  # title card; the live shot already has its own clip on the page
+    ffmpeg("-ss", f"{(start + end) / 2:.2f}", "-i", str(VIDEOS / "holosplat.mp4"), "-frames:v", "1", "-vf", "scale=1280:-2",
+           "-q:v", "3", str(IMAGES / "video_poster.jpg"))
+    print("holosplat.mp4, video_poster.jpg")
+
+
+def segments(root):
+    """(start, end) seconds of each segment between the white fades of the narrated video."""
+    with tempfile.TemporaryDirectory(prefix="lichf_holosplat_") as tmp:
+        stats = Path(tmp) / "ymin.txt"
+        ffmpeg("-i", str(root / PV_VIDEO), "-vf",
+               f"scale=64:36,signalstats,metadata=print:key=lavfi.signalstats.YMIN:file={stats}", "-f", "null", "-")
+        times, white = [], []
+        for line in stats.read_text().splitlines():
+            if m := re.search(r"pts_time:([\d.]+)", line):
+                times.append(float(m.group(1)))
+            elif m := re.search(r"YMIN=([\d.]+)", line):
+                white.append(float(m.group(1)) >= 230)
+    runs, start = [], None
+    for t, w in zip(times, white):
+        if w and start is None:
+            start = t
+        elif not w and start is not None:
+            runs.append((start, prev))
+            start = None
+        prev = t
+    if start is not None:
+        runs.append((start, prev))
+    if not runs or runs[-1][1] < times[-1]:
+        runs.append((times[-1], times[-1]))
+    found = [(a[1], b[0]) for a, b in zip(runs, runs[1:])]
+    if len(found) != SEGMENTS:
+        raise SystemExit(f"expected {SEGMENTS} segments in {PV_VIDEO}, found {len(found)}: update CLIPS")
+    return found
+
+
+def clips(root):
+    spans = segments(root)
+    for name, (index, x, y, w, h) in CLIPS.items():
+        start, end = spans[index]
+        out = VIDEOS / f"clip_{name}.mp4"
+        ffmpeg("-ss", f"{start + TRIM_S:.2f}", "-to", f"{end - TRIM_S:.2f}", "-i", str(root / PV_VIDEO),
+               "-vf", f"crop={w}:{h}:{x}:{y},scale=1280:-2", *X264, "-crf", "26", str(out))
+        # animations build up from a blank slide, so the poster is taken near the end
+        ffmpeg("-sseof", "-1", "-i", str(out), "-frames:v", "1", "-q:v", "4", str(IMAGES / f"clip_{name}.jpg"))
+        print(f"clip_{name}.mp4 {end - start - 2 * TRIM_S:.1f}s")
+
+
+def encode_frames(pattern, out, vf, crf=21):
+    ffmpeg("-framerate", "30", "-i", str(pattern), "-vf", vf, *X264, "-crf", str(crf), str(out))
+    ffmpeg("-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / f"{out.stem}.jpg"))
+
+
+def orbits(root):
+    for tier in ("lite", "pro", "ultra"):
+        encode_frames(root / ORBIT.format(arm="calibrated", tier=tier) / "%06d.png", VIDEOS / f"orbit_{tier}.mp4", ORBIT_CROP)
+        print(f"orbit_{tier}.mp4")
+
+
+def compare(root):
+    """Before | after session calibration, Pro, same camera path; the page splits it with a slider."""
+    before = root / ORBIT.format(arm="calibrated_before", tier="pro") / "%06d.png"
+    after = root / ORBIT.format(arm="calibrated", tier="pro") / "%06d.png"
+    out = VIDEOS / "compare_nsc.mp4"
+    ffmpeg("-framerate", "30", "-i", str(before), "-framerate", "30", "-i", str(after), "-filter_complex",
+           f"[0]{ORBIT_CROP}[b];[1]{ORBIT_CROP}[a];[b][a]hstack", *X264, "-crf", "18", str(out))
+    ffmpeg("-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / "compare_nsc.jpg"))
+    print("compare_nsc.mp4")
+
+
+def hero(root):
+    runs = sorted(root.glob(SHOWCASE_GLOB))
+    if not runs:
+        raise SystemExit(f"no {SHOWCASE_GLOB} run")
+    run = runs[-1]
+    for name in ("dynamic_orbit", "bullet_time"):
+        meta = json.loads((run / name / "meta.json").read_text())
+        encode_frames(run / name / "%06d.png", VIDEOS / f"hero_{name}.mp4", HERO_CROP, crf=19)
+        print(f"hero_{name}.mp4 from {run.name}/{name}: {len(meta['frames'])} frames")
+
+
+STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, "compare": compare, "hero": hero}
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=WEB.parent)
-    root = parser.parse_args().root
+    parser.add_argument("--stage", nargs="+", choices=STAGES, default=list(STAGES))
+    args = parser.parse_args()
     IMAGES.mkdir(parents=True, exist_ok=True)
     VIDEOS.mkdir(parents=True, exist_ok=True)
-
-    pdf = str(root / PDF)
-    with tempfile.TemporaryDirectory(prefix="lichf_holosplat_") as tmp:
-        for name, spec in FIGURES.items():
-            crop_figure(pdf, tmp, name, *spec)
-
-    shutil.copy2(root / PV_VIDEO, VIDEOS / "holosplat.mp4")
-    ffmpeg("-ss", str(PV_POSTER_S), "-i", str(VIDEOS / "holosplat.mp4"), "-frames:v", "1", "-vf", "scale=1280:-2",
-           "-q:v", "3", str(IMAGES / "video_poster.jpg"))
-    print("holosplat.mp4, video_poster.jpg")
-
-    for tier in ("lite", "pro", "ultra"):
-        frames = root / ORBITS.format(tier=tier) / "%06d.png"
-        out = VIDEOS / f"orbit_{tier}.mp4"
-        ffmpeg("-framerate", "30", "-i", str(frames), "-vf", ORBIT_CROP, "-c:v", "libx264", "-preset", "slow",
-               "-crf", "21", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", str(out))
-        ffmpeg("-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / f"orbit_{tier}.jpg"))
-        print(f"orbit_{tier}.mp4")
+    for stage in args.stage:
+        STAGES[stage](args.root)
 
 
 if __name__ == "__main__":

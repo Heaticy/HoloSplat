@@ -16,7 +16,20 @@
 </head>
 <body>
 
-<header class="hero">
+<nav class="topbar" aria-label="Sections">
+  <a class="topbar-brand" href="#top">HoloSplat</a>
+  <div class="topbar-links">
+    <a href="#video">Video</a>
+    <a href="#live">Live</a>
+    <a href="#method">Method</a>
+    <a href="#nsc">Calibration</a>
+    <a href="#compare">Comparisons</a>
+    <a href="#results">Results</a>
+    <a href="#bibtex">BibTeX</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
   <div class="container">
     <h1 class="title"><span class="brand">HoloSplat</span>: Real-Time Token Streaming for Feed-Forward Human Reconstruction</h1>
 
@@ -53,9 +66,29 @@
 
 <main>
 
+<section class="stage" aria-label="Showcase">
+  <div class="container wide">
+    <div class="stage-grid">
+      <figure class="stage-main reveal">
+        <video class="autoplay" autoplay muted loop playsinline preload="auto" poster="static/images/hero_dynamic_orbit.jpg">
+          <source src="static/videos/hero_dynamic_orbit.mp4" type="video/mp4">
+        </video>
+        <figcaption><span class="tag">Free viewpoint</span> The camera circles the performer while she dances.</figcaption>
+      </figure>
+      <figure class="stage-side reveal">
+        <video class="autoplay" autoplay muted loop playsinline preload="auto" poster="static/images/hero_bullet_time.jpg">
+          <source src="static/videos/hero_bullet_time.mp4" type="video/mp4">
+        </video>
+        <figcaption><span class="tag">Bullet time</span> One streamed frame, seen from every side.</figcaption>
+      </figure>
+    </div>
+    <p class="stage-note">Streamed by HoloSplat Pro from eight cameras and decoded into 3D Gaussians on the client.</p>
+  </div>
+</section>
+
 <section class="teaser">
   <div class="container wide">
-    <figure>
+    <figure class="reveal">
       <img src="static/images/teaser.jpg" alt="Eight studio cameras capture a performer; the server sends compressed tokens to a laptop that restores them into a free-viewpoint 3D human" width="2132" height="1098">
       <figcaption>
         <b>HoloSplat streams human-centric volumetric video live via compact tokens instead of explicit 3D Gaussians.</b>
@@ -65,10 +98,10 @@
     </figure>
 
     <ul class="stats" aria-label="Key results">
-      <li><strong>32.2<span> FPS</span></strong>on four RTX 5090 GPUs at 50&nbsp;Mbit/s</li>
-      <li><strong>22.1<span> ms</span></strong>per frame into 3D Gaussians on an RTX 3050&nbsp;Ti laptop GPU</li>
-      <li><strong>22.8<span>&times;</span></strong>less data than uncompressed float32 Gaussians</li>
-      <li><strong>+1.050<span> dB</span></strong>PSNR from calibrated decoding</li>
+      <li class="reveal"><strong><span class="count" data-to="32.2" data-digits="1">32.2</span><small> FPS</small></strong>on four RTX 5090 GPUs at 50&nbsp;Mbit/s</li>
+      <li class="reveal"><strong><span class="count" data-to="22.1" data-digits="1">22.1</span><small> ms</small></strong>per frame into 3D Gaussians on an RTX 3050&nbsp;Ti laptop GPU</li>
+      <li class="reveal"><strong><span class="count" data-to="22.8" data-digits="1">22.8</span><small>&times;</small></strong>less data than uncompressed float32 Gaussians</li>
+      <li class="reveal"><strong>+<span class="count" data-to="1.050" data-digits="3">1.050</span><small> dB</small></strong>PSNR from calibrated decoding</li>
     </ul>
   </div>
 </section>
@@ -96,10 +129,10 @@
   </div>
 </section>
 
-<section id="video">
-  <div class="container">
+<section id="video" class="dark">
+  <div class="container wide">
     <h2>Video</h2>
-    <div class="video-frame">
+    <div class="video-frame reveal">
       <video controls preload="metadata" playsinline poster="static/images/video_poster.jpg">
         <source src="static/videos/holosplat.mp4" type="video/mp4">
       </video>
@@ -107,10 +140,23 @@
   </div>
 </section>
 
+<section id="live">
+  <div class="container wide">
+    <h2>Live, End to End</h2>
+    <p class="lead">Eight synchronized cameras in, 3D Gaussians out: the server mats and reconstructs every frame, and a
+    WiFi laptop decodes the token packets and renders them at 30&nbsp;FPS.</p>
+    <figure class="clip reveal">
+      <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/clip_live.jpg">
+        <source src="static/videos/clip_live.mp4" type="video/mp4">
+      </video>
+    </figure>
+  </div>
+</section>
+
 <section id="method">
   <div class="container wide">
     <h2>Stream Tokens, Not Gaussians</h2>
-    <figure>
+    <figure class="reveal">
       <img src="static/images/method.jpg" alt="HoloSplat pipeline: capture rig, matting, PointSplat split before its Gaussian head, token pruning, PCA and anchor coding on the server; fused decoder with hypernetwork and Gaussian head on the client; warm-up session calibration" width="2000" height="579" loading="lazy">
       <figcaption>
         <b>HoloSplat splits a frozen feed-forward reconstructor before its Gaussian head and streams tokens with a multi-rate
@@ -118,35 +164,66 @@
       </figcaption>
     </figure>
 
-    <div class="cards">
-      <article class="card">
-        <span class="step">1</span>
-        <h3>Split before the Gaussian head</h3>
-        <p>PointSplat fuses eight views into tokens, and each token drives 16 Gaussians through the Gaussian head.
-        Non-linear activations, exponential scaling above all, amplify quantisation error after the head, so we cut the
-        network before it and stream the tokens: the same codec beats post-head attribute compression by 2.8&ndash;10.3&nbsp;dB.</p>
-      </article>
-      <article class="card">
-        <span class="step">2</span>
-        <h3>Server-side token compression</h3>
-        <p>A lightweight predictor drops tokens whose Gaussians are near-transparent, PCA projects each kept token onto a
-        session basis with <i>b</i>-bit quantisation, and anchors are coded losslessly. Lite, Pro and Ultra share one
-        reconstructor and use different token compression settings.</p>
-      </article>
-      <article class="card">
-        <span class="step">3</span>
-        <h3>Client-side token restoration</h3>
-        <p>Inverse PCA is fused into the Gaussian head, so tokens are never expanded back to 1024 dimensions. A lightweight
-        hypernetwork restores what PCA discards from the kept coefficients, the anchor layout and the eight nearest groups,
-        recovering 80.4% of the compression loss at zero per-frame bitrate.</p>
-      </article>
-      <article class="card">
-        <span class="step">4</span>
-        <h3>Neural session calibration</h3>
-        <p>During warm-up, the server fits a rank-32 hypernetwork update and a rank-5 Gaussian-head update on the first
-        30 frames of the incoming views. Both updates are sent once and fused on the client, adding no per-frame bytes
-        or compute.</p>
-      </article>
+    <div class="steps reveal" data-tabs>
+      <div class="step-list" role="tablist" aria-label="Method steps">
+        <button role="tab" aria-selected="true" data-panel="step-split"><span class="step">1</span>Split before the head</button>
+        <button role="tab" aria-selected="false" data-panel="step-prune"><span class="step">2</span>Token pruning</button>
+        <button role="tab" aria-selected="false" data-panel="step-pca"><span class="step">3</span>PCA coding</button>
+        <button role="tab" aria-selected="false" data-panel="step-anchors"><span class="step">4</span>Lossless anchors</button>
+        <button role="tab" aria-selected="false" data-panel="step-restore"><span class="step">5</span>Client restoration</button>
+      </div>
+      <div class="step-panels">
+        <div class="step-panel" id="step-split" role="tabpanel">
+          <video muted loop playsinline preload="metadata" poster="static/images/clip_split.jpg"><source src="static/videos/clip_split.mp4" type="video/mp4"></video>
+          <p>PointSplat fuses eight views into tokens, and each token drives 16 Gaussians through the Gaussian head.
+          Non-linear activations, exponential scaling above all, amplify quantisation error after the head, so we cut the
+          network before it and stream the tokens: the same codec beats post-head attribute compression by 2.8&ndash;10.3&nbsp;dB.</p>
+        </div>
+        <div class="step-panel" id="step-prune" role="tabpanel" hidden>
+          <video muted loop playsinline preload="none" poster="static/images/clip_prune.jpg"><source src="static/videos/clip_prune.mp4" type="video/mp4"></video>
+          <p>A lightweight predictor scores each token by the opacity of its Gaussians and drops the near-transparent ones
+          before anything is coded.</p>
+        </div>
+        <div class="step-panel" id="step-pca" role="tabpanel" hidden>
+          <video muted loop playsinline preload="none" poster="static/images/clip_pca.jpg"><source src="static/videos/clip_pca.mp4" type="video/mp4"></video>
+          <p>PCA projects each kept token onto a session basis that is sent once, and the coefficients are quantised to
+          <i>b</i> bits. Lite, Pro and Ultra share one reconstructor and use different token compression settings.</p>
+        </div>
+        <div class="step-panel" id="step-anchors" role="tabpanel" hidden>
+          <video muted loop playsinline preload="none" poster="static/images/clip_anchors.jpg"><source src="static/videos/clip_anchors.mp4" type="video/mp4"></video>
+          <p>Anchors are coded losslessly: an anchor error would shift a whole group of Gaussians.</p>
+        </div>
+        <div class="step-panel" id="step-restore" role="tabpanel" hidden>
+          <video muted loop playsinline preload="none" poster="static/images/clip_restore.jpg"><source src="static/videos/clip_restore.mp4" type="video/mp4"></video>
+          <p>Inverse PCA is fused into the Gaussian head, so tokens are never expanded back to 1024 dimensions. A lightweight
+          hypernetwork restores what PCA discards from the kept coefficients, the anchor layout and the eight nearest groups,
+          recovering 80.4% of the compression loss at zero per-frame bitrate.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="nsc" class="tinted">
+  <div class="container wide">
+    <h2>Neural Session Calibration</h2>
+    <p class="lead">During warm-up, the server fits a rank-32 hypernetwork update and a rank-5 Gaussian-head update on the
+    first 30 frames of the incoming views. Both updates are sent once and fused on the client, adding no per-frame bytes
+    or compute.</p>
+    <div class="nsc-grid">
+      <figure class="clip reveal">
+        <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/clip_nsc.jpg">
+          <source src="static/videos/clip_nsc.mp4" type="video/mp4">
+        </video>
+      </figure>
+      <figure class="slider reveal" data-slider>
+        <video class="slider-source" muted loop playsinline preload="metadata" src="static/videos/compare_nsc.mp4"></video>
+        <canvas aria-label="Before and after session calibration, same frame and viewpoint; drag to compare"></canvas>
+        <input type="range" min="0" max="100" value="50" aria-label="Divider position">
+        <span class="slider-label left">Before</span>
+        <span class="slider-label right">After calibration</span>
+        <figcaption>Pro tier, same frame, same free viewpoint. Drag the divider.</figcaption>
+      </figure>
     </div>
   </div>
 </section>
@@ -155,20 +232,20 @@
   <div class="container">
     <h2>Free-Viewpoint Streaming at Three Rates</h2>
     <div class="orbits">
-      <figure>
-        <video autoplay muted loop playsinline preload="metadata" poster="static/images/orbit_lite.jpg">
+      <figure class="reveal">
+        <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/orbit_lite.jpg">
           <source src="static/videos/orbit_lite.mp4" type="video/mp4">
         </video>
         <figcaption><b>Lite</b> (32, 4)</figcaption>
       </figure>
-      <figure>
-        <video autoplay muted loop playsinline preload="metadata" poster="static/images/orbit_pro.jpg">
+      <figure class="reveal">
+        <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/orbit_pro.jpg">
           <source src="static/videos/orbit_pro.mp4" type="video/mp4">
         </video>
         <figcaption><b>Pro</b> (48, 6)</figcaption>
       </figure>
-      <figure>
-        <video autoplay muted loop playsinline preload="metadata" poster="static/images/orbit_ultra.jpg">
+      <figure class="reveal">
+        <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/orbit_ultra.jpg">
           <source src="static/videos/orbit_ultra.mp4" type="video/mp4">
         </video>
         <figcaption><b>Ultra</b> (80, 6)</figcaption>
@@ -178,6 +255,40 @@
       Each tier keeps <i>r</i> PCA coefficients at <i>b</i> bits per token, (<i>r</i>, <i>b</i>) in parentheses.
       Lite, Pro, and Ultra share one reconstructor and use different token compression settings.
     </p>
+    <figure class="clip narrow reveal">
+      <video class="autoplay" muted loop playsinline preload="metadata" poster="static/images/clip_tiers.jpg">
+        <source src="static/videos/clip_tiers.mp4" type="video/mp4">
+      </video>
+    </figure>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="container wide">
+    <h2>Same Frame, Same Free Viewpoint</h2>
+    <div class="compare reveal" data-tabs>
+      <div class="pill-row" role="tablist" aria-label="Comparison groups">
+        <button role="tab" aria-selected="true" data-panel="cmp-stream">Streaming and per-frame optimisation</button>
+        <button role="tab" aria-selected="false" data-panel="cmp-ff">Feed-forward reconstruction</button>
+      </div>
+      <div class="compare-panels">
+        <div class="compare-panel" id="cmp-stream" role="tabpanel">
+          <div class="scene-row" data-scenes>
+            <button aria-pressed="true" data-src="static/videos/clip_cmp_stream_a.mp4" data-poster="static/images/clip_cmp_stream_a.jpg">Scene A</button>
+            <button aria-pressed="false" data-src="static/videos/clip_cmp_stream_b.mp4" data-poster="static/images/clip_cmp_stream_b.jpg">Scene B</button>
+          </div>
+          <video muted loop playsinline preload="metadata" poster="static/images/clip_cmp_stream_a.jpg"><source src="static/videos/clip_cmp_stream_a.mp4" type="video/mp4"></video>
+        </div>
+        <div class="compare-panel" id="cmp-ff" role="tabpanel" hidden>
+          <div class="scene-row" data-scenes>
+            <button aria-pressed="true" data-src="static/videos/clip_cmp_ff_a.mp4" data-poster="static/images/clip_cmp_ff_a.jpg">Scene A</button>
+            <button aria-pressed="false" data-src="static/videos/clip_cmp_ff_b.mp4" data-poster="static/images/clip_cmp_ff_b.jpg">Scene B</button>
+          </div>
+          <video muted loop playsinline preload="none" poster="static/images/clip_cmp_ff_a.jpg"><source src="static/videos/clip_cmp_ff_a.mp4" type="video/mp4"></video>
+        </div>
+      </div>
+      <p class="caption">Kilobytes per frame and PSNR are sequence averages on DNA-Rendering.</p>
+    </div>
   </div>
 </section>
 
@@ -185,9 +296,9 @@
   <div class="container wide">
     <h2>Results</h2>
 
-    <div class="split">
+    <div class="split reveal">
       <figure class="plot">
-        <img src="static/images/teaser_plot.jpg" alt="PSNR against server time and payload: HoloSplat sits top-left in both plots, above HiCoM, QUEEN-l and 3DGStream" width="968" height="882" loading="lazy">
+        <img src="static/images/teaser_plot.jpg" alt="PSNR against server time and payload: HoloSplat sits top-left in both plots, above HiCoM, QUEEN-l and 3DGStream" width="968" height="771" loading="lazy">
       </figure>
       <div class="split-text">
         <h3>Faster, smaller, better than per-frame optimisation</h3>
@@ -198,7 +309,7 @@
       </div>
     </div>
 
-    <figure>
+    <figure class="reveal">
       <img src="static/images/qualitative.jpg" alt="Held-out views on DNA-Rendering, HiFi4G and ActorsHQ: HoloSplat Pro against ground truth, 4C4D, 3DGStream, HiCoM and PointSplat with per-view PSNR" width="2000" height="414" loading="lazy">
       <figcaption>
         <b>From eight views, HoloSplat preserves facial detail and garment lacing where offline 4C4D smears the face,
@@ -207,7 +318,7 @@
       </figcaption>
     </figure>
 
-    <div class="table-wrap">
+    <div class="table-wrap reveal">
       <table>
         <caption>
           <b>HoloSplat sends a fraction of PointSplat&rsquo;s Gaussian bytes and exceeds its PSNR at every tier across

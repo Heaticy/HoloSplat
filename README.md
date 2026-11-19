@@ -5,10 +5,13 @@ Source of <https://heaticy.github.io/HoloSplat/>, served by GitHub Pages from th
 `web/` submodule.
 
 - `index.html`, `static/css/index.css`, `static/js/index.js`: the page. Numbers and figure captions come from the paper.
-- `tools/update_assets.py`: rebuilds `static/images/*.jpg` from `paper/arxiv/HoloSplat_arxiv.pdf` (run
-  `make -C paper arxiv` first) and `static/videos/*.mp4` from the supplementary-video outputs under `pv/`.
-  Run it from the RealTime-4DGS root with `methods/pointsplat/.venv/bin/python web/tools/update_assets.py`,
-  then check the images before committing.
+- `tools/update_assets.py`: rebuilds `static/images/*.jpg` and `static/videos/*.mp4`. Stages (`--stage`, default all):
+  `figures` crops paper figures from `paper/arxiv/HoloSplat_arxiv.pdf` (run `make -C paper arxiv` first);
+  `video` and `clips` take the narrated video `pv/final/out/holosplat_pv_web.mp4` and cut the looping clips at its
+  white fades (the script stops if the segment count changes, so update `CLIPS` after a new cut); `orbits` and
+  `compare` encode the live 0013_08 session renders; `hero` encodes the newest `pv/runs/*_SGT_Showcase_0678_02`
+  run (made by `pv/offline/render_showcase.py`). Run it from the RealTime-4DGS root with
+  `methods/pointsplat/.venv/bin/python web/tools/update_assets.py`, then check the images and clips before committing.
 
 When the arXiv ID is out, replace the `is-soon` Paper button in `index.html` with a link to the abstract page
 and set `journal = {arXiv preprint arXiv:<id>}` in the BibTeX block.
