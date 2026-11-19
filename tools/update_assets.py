@@ -72,6 +72,13 @@ CLIPS = {
 }
 TRIM_S = 0.1  # skip the fade frames at both ends of a segment
 MATCH_W, MATCH_RATIO = 160, 0.6  # thumbnail width; the best segment must differ < 0.6 x as much as the runner-up
+# Comparison shots are 60 source frames at 4 ticks (8 s); the PV may hold a static data card after the footage
+# until the narration ends, which the page's looping clip leaves out.
+CMP_SHOT_S = 8.0
+
+
+def clip_span(name, start, end):
+    return start, min(end, start + CMP_SHOT_S) if name.startswith("cmp_") else end
 
 
 def ffmpeg(*args):
@@ -159,15 +166,22 @@ def thumb(im, w, h):
 
 
 def assign(root, spans):
-    """Segment index of each clip: the segment whose frame 1 s before its end (where the poster is taken) best
-    matches the clip's current poster under the clip's crop."""
-    frames = [pv_frame(root, max(start, end - TRIM_S - 1)) for start, end in spans]
+    """Segment index of each clip: the segment whose frame 1 s before the clip's end (where the poster is taken)
+    best matches the clip's current poster under the clip's crop."""
+    cache = {}
+
+    def frame(t):
+        if t not in cache:
+            cache[t] = pv_frame(root, t)
+        return cache[t]
+
     picks = {}
     for name, (index, x, y, w, h) in CLIPS.items():
         poster = IMAGES / f"clip_{name}.jpg"
         if not poster.exists():
             picks[name] = index
             continue
+        frames = [frame(max(start, end - TRIM_S - 1)) for start, end in (clip_span(name, *s) for s in spans)]
         ref = thumb(Image.open(poster), w, h)
         box = (x // 4, y // 4, (x + w) // 4, (y + h) // 4)
         scores = sorted((float(np.abs(thumb(f.crop(box), w, h) - ref).mean()), i) for i, f in enumerate(frames))
@@ -186,7 +200,7 @@ def clips(root):
     spans = segments(root)
     picks = assign(root, spans)
     for name, (_, x, y, w, h) in CLIPS.items():
-        start, end = spans[picks[name]]
+        start, end = clip_span(name, *spans[picks[name]])
         out = VIDEOS / f"clip_{name}.mp4"
         ffmpeg("-ss", f"{start + TRIM_S:.2f}", "-to", f"{end - TRIM_S:.2f}", "-i", str(root / PV_VIDEO),
                "-vf", f"crop={w}:{h}:{x}:{y},scale=1280:-2", *X264, "-crf", "26", str(out))
