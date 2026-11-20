@@ -57,7 +57,7 @@ FIGURES = {
 # name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the slide title and subtitle.
 # The index (in the 2026-11-19 cut) is used only for a clip that has no poster yet; otherwise the clip is matched.
 CLIPS = {
-    "live": (4, 0, 70, 1920, 890),
+    "live": (4, 0, 70, 1920, 920),  # down to y 990: keeps "Client-side rendering" and both packet lines (end 975), drops the subtitle (1005)
     "split": (7, 0, 150, 1920, 800),
     "prune": (8, 0, 150, 1920, 800),
     "pca": (9, 0, 150, 1920, 800),
