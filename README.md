@@ -18,5 +18,9 @@ Source of <https://heaticy.github.io/HoloSplat/>, served by GitHub Pages from th
   Every run ends with a check that the page never names the conference: it fails on any text file mentioning it and
   on a narrated video whose title card has the full cut's venue line (use `holosplat_pv_web.mp4`, never the full cut).
 
+Both PV sessions publish here (supplementary-video work also updates the page). Before regenerating assets,
+`git pull --rebase` this branch and build the PV from the latest `pv` develop, so a push never reverts the other
+session's newer video or clips.
+
 When the arXiv ID is out, replace the `is-soon` Paper button in `index.html` with a link to the abstract page
 and set `journal = {arXiv preprint arXiv:<id>}` in the BibTeX block.
