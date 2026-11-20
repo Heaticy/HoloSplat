@@ -65,10 +65,10 @@ CLIPS = {
     "restore": (13, 0, 150, 1920, 800),
     "nsc": (15, 0, 150, 1920, 800),
     "tiers": (16, 0, 150, 1920, 800),
-    "cmp_stream_a": (19, 0, 130, 1920, 776),
-    "cmp_stream_b": (20, 0, 130, 1920, 776),
-    "cmp_ff_a": (22, 0, 130, 1920, 776),
-    "cmp_ff_b": (23, 0, 130, 1920, 776),
+    "cmp_stream_a": (19, 0, 130, 1920, 868),
+    "cmp_stream_b": (20, 0, 130, 1920, 868),
+    "cmp_ff_a": (22, 0, 130, 1920, 868),
+    "cmp_ff_b": (23, 0, 130, 1920, 868),
 }
 TRIM_S = 0.1  # skip the fade frames at both ends of a segment
 MATCH_W, MATCH_RATIO = 160, 0.6  # thumbnail width; the best segment must differ < 0.6 x as much as the runner-up
