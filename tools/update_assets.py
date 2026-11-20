@@ -265,6 +265,23 @@ STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, 
           "teaser": teaser}
 
 
+def check_no_venue():
+    """The public page must never name the venue: no text file under web/ (outside .git and this script) may contain
+    it, and the narrated video's title card must not carry the full cut's venue line (rows 610-630: the full cut's
+    venue line spans 599-631, the web cut's centred title ends at 602)."""
+    venue = re.compile(rb"c\s*v\s*p\s*r", re.I)
+    text = {".html", ".css", ".js", ".md", ".json", ".svg", ".txt", ".bib"}
+    hits = [str(p.relative_to(WEB)) for p in WEB.rglob("*")
+            if p.suffix in text and ".git" not in p.parts and venue.search(p.read_bytes())]
+    raw = subprocess.check_output(["ffmpeg", "-v", "error", "-ss", "2", "-i", str(VIDEOS / "holosplat.mp4"), "-frames:v", "1",
+                                   "-f", "rawvideo", "-pix_fmt", "gray", "-"])
+    band = np.frombuffer(raw, np.uint8).reshape(1080, 1920)[610:630]
+    if (band < 200).sum() > 50:
+        hits.append("static/videos/holosplat.mp4 title card has a venue line; use the --web cut")
+    if hits:
+        raise SystemExit("venue named on the public page: " + ", ".join(hits))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=WEB.parent)
@@ -274,6 +291,7 @@ def main():
     VIDEOS.mkdir(parents=True, exist_ok=True)
     for stage in args.stage:
         STAGES[stage](args.root)
+    check_no_venue()
 
 
 if __name__ == "__main__":
