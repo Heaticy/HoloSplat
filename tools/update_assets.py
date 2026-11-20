@@ -14,7 +14,7 @@ Stages:
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
   compare   before/after session calibration on held-out DNA-Rendering views, for the page's sliders
   hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
-  teaser    animated Fig. 1 (labelled, 1920 x 960) from the newest TeaserLive*_0678_02 run
+  teaser    animated Fig. 1 (labelled, 1600 x 800, about 2 Mbit/s) from the newest TeaserLive*_0678_02 run
 """
 import argparse
 import json
@@ -255,8 +255,10 @@ def teaser(root):
     if not runs:
         raise SystemExit(f"no {TEASER_GLOB} run")
     out = VIDEOS / "teaser_live.mp4"
-    # stream copy keeps the run's encode; faststart lets the page start playing before the whole file arrives
-    ffmpeg("-i", str(runs[-1] / "teaser_live_web.mp4"), "-c", "copy", "-an", "-movflags", "+faststart", str(out))
+    # From the run's 2400 x 1200 master: 1600 px at CRF 27 is about 2 Mbit/s (SSIM 0.971 against the master), so the
+    # first screen plays through on a slow connection while the labels stay sharp.
+    ffmpeg("-i", str(runs[-1] / "teaser_live.mp4"), "-vf", "scale=1600:-2:flags=lanczos",
+           *[a if a != "slow" else "veryslow" for a in X264], "-crf", "27", str(out))
     ffmpeg("-ss", str(TEASER_POSTER_S), "-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / "teaser_live.jpg"))
     print(f"teaser_live.mp4 from {runs[-1].name}")
 

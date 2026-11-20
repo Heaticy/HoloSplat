@@ -17,10 +17,21 @@ function isShown(video) {
   return !video.closest("[hidden]");
 }
 const onScreen = new Set();
+// Preloaded loops (the first screen) start only once the browser expects to play through without stalling, so a slow
+// connection shows the poster instead of a stuttering first pass; lazily loaded clips start loading by playing.
+function start(video) {
+  if (video.preload !== "auto" || video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+    video.play().catch(() => {});
+    return;
+  }
+  video.addEventListener("canplaythrough", () => {
+    if (onScreen.has(video) && isShown(video)) video.play().catch(() => {});
+  }, { once: true });
+}
 const playObserver = new IntersectionObserver((entries) => {
   for (const { target, isIntersecting } of entries) {
     if (isIntersecting) onScreen.add(target); else onScreen.delete(target);
-    if (isIntersecting && isShown(target)) target.play().catch(() => {});
+    if (isIntersecting && isShown(target)) start(target);
     else target.pause();
   }
 }, { threshold: 0.25 });
