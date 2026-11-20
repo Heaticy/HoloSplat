@@ -14,7 +14,7 @@ Stages:
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
   compare   before/after session calibration on held-out DNA-Rendering views, for the page's sliders
   hero      0678_02 showcase (dynamic orbit and bullet time) from the newest Showcase_0678_02 run
-  teaser    animated Fig. 1 (labelled, 1920 x 960) from the newest TeaserLive_0678_02 run
+  teaser    animated Fig. 1 (labelled, 1920 x 960) from the newest TeaserLive*_0678_02 run
 """
 import argparse
 import json
@@ -36,7 +36,7 @@ LIVE = "pv/runs/20261119_0440_SGT_Live0013_4GPU_Laptop/smooth"
 ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
 SHOWCASE_GLOB = "pv/runs/*_SGT_Showcase_0678_02"
-TEASER_GLOB = "pv/runs/*_SGT_TeaserLive_0678_02"  # made by pv/teaser_live (animated paper Fig. 1)
+TEASER_GLOB = "pv/runs/*_SGT_TeaserLive*_0678_02"  # made by pv/teaser_live (animated paper Fig. 1); newest by date
 TEASER_POSTER_S = 1.5  # source frame 90, the paper's Fig. 1 frame
 HERO_CROP = "crop=540:720:240:200"  # 3:4 window holding the performer over both 0678_02 sequences
 NSC_GLOB = "pv/runs/*_SGT_NSC_Slider_Candidates"  # made by pv/offline/render_nsc_slider.py
