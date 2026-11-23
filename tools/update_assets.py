@@ -8,7 +8,7 @@ the images and clips before committing.
 
 Stages:
   figures   paper figures cropped from the arXiv build above their captions
-  video     the narrated video and its poster
+  video     the narrated video, standalone live screencast and their posters
   clips     looping clips cut from the narrated video; segments are found at its white fades and each clip is
             matched to the segment that looks like its current poster, so a re-cut PV needs no index changes
   orbits    Lite / Pro / Ultra free-viewpoint orbits of the live 0013_08 session
@@ -19,6 +19,7 @@ Stages:
 import argparse
 import json
 import re
+from functools import cache
 import shutil
 import subprocess
 import tempfile
@@ -32,6 +33,7 @@ IMAGES = WEB / "static" / "images"
 VIDEOS = WEB / "static" / "videos"
 PDF = "paper/arxiv/HoloSplat_arxiv.pdf"
 PV_VIDEO = "pv/final/out/holosplat_pv_web.mp4"
+PV_LIVE_VIDEO = "pv/final/out/holosplat_pv_live.mp4"
 LIVE = "pv/runs/20261119_0440_SGT_Live0013_4GPU_Laptop/smooth"
 ORBIT = LIVE + "/{arm}/tiers/{tier}/orbit360"
 ORBIT_CROP = "crop=360:600:382:238"  # the performer's extent over the whole orbit, centred
@@ -52,23 +54,22 @@ FIGURES = {
     "qualitative": (8, "6.", 50.0, 28.0, 562.0, 300, 2000),
 }
 
-# The narrated video is title, problem, live card, warm-up, live, method card, overview, M0-M7 with the
+# The narrated video is title, problem, live card, live, method card, overview, M0–M7 with the
 # compression and recovery shots, comparison cards and shots, summary, ending, joined by white fades.
 # name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the slide title and subtitle.
-# The index (in the 2026-11-19 cut) is used only for a clip that has no poster yet; otherwise the clip is matched.
+# The index is used only for a clip that has no poster yet; otherwise the clip is matched.
 CLIPS = {
-    "live": (4, 0, 70, 1920, 920),  # down to y 990: keeps "Client-side rendering" and both packet lines (end 975), drops the subtitle (1005)
-    "split": (7, 0, 150, 1920, 800),
-    "prune": (8, 0, 150, 1920, 800),
-    "pca": (9, 0, 150, 1920, 800),
-    "anchors": (10, 0, 150, 1920, 800),
-    "restore": (13, 0, 150, 1920, 800),
+    "split": (6, 0, 150, 1920, 800),
+    "prune": (7, 0, 150, 1920, 800),
+    "pca": (8, 0, 150, 1920, 800),
+    "anchors": (9, 0, 150, 1920, 800),
+    "restore": (12, 0, 150, 1920, 800),
     "nsc": (14, 0, 56, 1920, 1004),
     "tiers": (15, 0, 150, 1920, 830),  # keeps the per-sequence label below the packet readouts
-    "cmp_stream_a": (19, 0, 130, 1920, 868),
-    "cmp_stream_b": (20, 0, 130, 1920, 868),
-    "cmp_ff_a": (22, 0, 130, 1920, 868),
-    "cmp_ff_b": (23, 0, 130, 1920, 868),
+    "cmp_stream_a": (18, 0, 130, 1920, 868),
+    "cmp_stream_b": (19, 0, 130, 1920, 868),
+    "cmp_ff_a": (21, 0, 130, 1920, 868),
+    "cmp_ff_b": (22, 0, 130, 1920, 868),
 }
 TRIM_S = 0.1  # skip the fade frames at both ends of a segment
 MATCH_W, MATCH_RATIO = 160, 0.6  # thumbnail width; the best segment must differ < 0.6 x as much as the runner-up
@@ -124,8 +125,13 @@ def video(root):
     ffmpeg("-ss", f"{(start + end) / 2:.2f}", "-i", str(VIDEOS / "holosplat.mp4"), "-frames:v", "1", "-vf", "scale=1280:-2",
            "-q:v", "3", str(IMAGES / "video_poster.jpg"))
     print("holosplat.mp4, video_poster.jpg")
+    live = VIDEOS / "demo_screencast.mp4"
+    shutil.copy2(root / PV_LIVE_VIDEO, live)
+    ffmpeg("-sseof", "-2.5", "-i", str(live), "-frames:v", "1", "-q:v", "3", str(IMAGES / "demo_screencast.jpg"))
+    print("demo_screencast.mp4, demo_screencast.jpg")
 
 
+@cache
 def segments(root):
     """(start, end) seconds of each segment between the white fades of the narrated video."""
     with tempfile.TemporaryDirectory(prefix="lichf_holosplat_") as tmp:
@@ -165,7 +171,7 @@ def thumb(im, w, h):
     return np.asarray(im.convert("L").resize((MATCH_W, round(MATCH_W * h / w)), Image.BILINEAR), dtype=np.float32)
 
 
-def assign(root, spans):
+def assign(root, spans, names):
     """Segment index of each clip: the segment whose frame 1 s before the clip's end (where the poster is taken)
     best matches the clip's current poster under the clip's crop."""
     cache = {}
@@ -176,7 +182,8 @@ def assign(root, spans):
         return cache[t]
 
     picks = {}
-    for name, (index, x, y, w, h) in CLIPS.items():
+    for name in names:
+        index, x, y, w, h = CLIPS[name]
         poster = IMAGES / f"clip_{name}.jpg"
         if not poster.exists():
             picks[name] = index
@@ -196,10 +203,11 @@ def assign(root, spans):
     return picks
 
 
-def clips(root):
+def clips(root, names=tuple(CLIPS)):
     spans = segments(root)
-    picks = assign(root, spans)
-    for name, (_, x, y, w, h) in CLIPS.items():
+    picks = assign(root, spans, names)
+    for name in names:
+        _, x, y, w, h = CLIPS[name]
         start, end = clip_span(name, *spans[picks[name]])
         out = VIDEOS / f"clip_{name}.mp4"
         ffmpeg("-ss", f"{start + TRIM_S:.2f}", "-to", f"{end - TRIM_S:.2f}", "-i", str(root / PV_VIDEO),
@@ -288,11 +296,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=WEB.parent)
     parser.add_argument("--stage", nargs="+", choices=STAGES, default=list(STAGES))
+    parser.add_argument("--clip", nargs="+", choices=CLIPS, help="only regenerate these clips in the clips stage")
     args = parser.parse_args()
+    if args.clip and "clips" not in args.stage:
+        parser.error("--clip requires the clips stage")
     IMAGES.mkdir(parents=True, exist_ok=True)
     VIDEOS.mkdir(parents=True, exist_ok=True)
     for stage in args.stage:
-        STAGES[stage](args.root)
+        if stage == "clips" and args.clip:
+            clips(args.root, args.clip)
+        else:
+            STAGES[stage](args.root)
     check_no_venue()
 
 
