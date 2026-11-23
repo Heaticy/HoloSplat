@@ -258,17 +258,39 @@ def hero(root):
         print(f"hero_{name}.mp4 from {run.name}/{name}: {n} frames")
 
 
+TEASER_DISSOLVE = 15  # frames (0.5 s): the take's tail dissolves into its head so the page loop never passes through black
+
+
 def teaser(root):
     runs = sorted(root.glob(TEASER_GLOB))
     if not runs:
         raise SystemExit(f"no {TEASER_GLOB} run")
+    run = runs[-1]
     out = VIDEOS / "teaser_live.mp4"
-    # From the run's 2400 x 1200 master: 1600 px at CRF 27 is about 2 Mbit/s (SSIM 0.971 against the master), so the
-    # first screen plays through on a slow connection while the labels stay sharp.
-    ffmpeg("-i", str(runs[-1] / "teaser_live.mp4"), "-vf", "scale=1600:-2:flags=lanczos",
-           *[a if a != "slow" else "veryslow" for a in X264], "-crf", "27", str(out))
+    # The run's master fades to black at both ends; the page loops, so rebuild the frames from the unfaded plates
+    # (studio render + label overlay, as pv/teaser_live/prepare.py composes them) and dissolve the last
+    # TEASER_DISSOLVE frames into the first ones. The loop is TEASER_DISSOLVE frames shorter than the take.
+    meta = json.loads((run / "meta.json").read_text())
+    sources = [row["source_frame"] for row in meta["frames"]]
+    overlay = Image.open(run / "labels/pills.png").convert("RGBA")
+
+    def plate(frame):
+        scene = Image.open(run / f"work/{frame:06d}/blender/teaser_scene.png").convert("RGBA")
+        return Image.alpha_composite(scene, overlay).convert("RGB")
+
+    n, k = len(sources), TEASER_DISSOLVE
+    with tempfile.TemporaryDirectory(prefix="teaser_loop_") as tmp:
+        for i in range(n - k):
+            image = plate(sources[i])
+            if i < k:
+                image = Image.blend(plate(sources[n - k + i]), image, (i + 1) / (k + 1))
+            image.save(f"{tmp}/{i:06d}.png", compress_level=1)
+        # 1600 px at CRF 27 is about 2 Mbit/s (SSIM 0.971 against the master), so the first screen plays through on a
+        # slow connection while the labels stay sharp.
+        ffmpeg("-framerate", str(meta["fps"]), "-i", f"{tmp}/%06d.png", "-vf", "scale=1600:-2:flags=lanczos",
+               *[a if a != "slow" else "veryslow" for a in X264], "-crf", "27", str(out))
     ffmpeg("-ss", str(TEASER_POSTER_S), "-i", str(out), "-frames:v", "1", "-q:v", "3", str(IMAGES / "teaser_live.jpg"))
-    print(f"teaser_live.mp4 from {runs[-1].name}")
+    print(f"teaser_live.mp4 from {run.name}: {n - k} frames, {k}-frame dissolve loop")
 
 
 STAGES = {"figures": figures, "video": video, "clips": clips, "orbits": orbits, "compare": compare, "hero": hero,
