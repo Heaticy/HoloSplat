@@ -56,20 +56,21 @@ FIGURES = {
 
 # The narrated video is title, problem, live card, live, method card, overview, M0–M7 with the
 # compression and recovery shots, comparison cards and shots, summary, ending, joined by white fades.
-# name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the slide title and subtitle.
+# name: (segment index, crop x, y, w, h in the 1920x1080 frame); crops drop the narration subtitle.
+# NSC and the comparisons keep their slide titles because panel context shares the same rows.
 # The index is used only for a clip that has no poster yet; otherwise the clip is matched.
 CLIPS = {
-    "split": (6, 0, 150, 1920, 800),
-    "prune": (7, 0, 150, 1920, 800),
-    "pca": (8, 0, 150, 1920, 800),
-    "anchors": (9, 0, 150, 1920, 800),
-    "restore": (12, 0, 150, 1920, 800),
-    "nsc": (14, 0, 56, 1920, 1004),
-    "tiers": (15, 0, 150, 1920, 830),  # keeps the per-sequence label below the packet readouts
-    "cmp_stream_a": (18, 0, 130, 1920, 868),
-    "cmp_stream_b": (19, 0, 130, 1920, 868),
-    "cmp_ff_a": (21, 0, 130, 1920, 868),
-    "cmp_ff_b": (22, 0, 130, 1920, 868),
+    "split": (6, 0, 150, 1920, 786),
+    "prune": (7, 0, 150, 1920, 786),
+    "pca": (8, 0, 150, 1920, 786),
+    "anchors": (9, 0, 150, 1920, 786),
+    "restore": (12, 0, 150, 1920, 786),
+    "nsc": (14, 0, 56, 1920, 880),
+    "tiers": (15, 0, 150, 1920, 786),  # keeps the per-sequence label below the packet readouts
+    "cmp_stream_a": (18, 0, 70, 1920, 858),
+    "cmp_stream_b": (19, 0, 70, 1920, 858),
+    "cmp_ff_a": (21, 0, 70, 1920, 858),
+    "cmp_ff_b": (22, 0, 70, 1920, 858),
 }
 TRIM_S = 0.1  # skip the fade frames at both ends of a segment
 MATCH_W, MATCH_RATIO = 160, 0.6  # thumbnail width; the best segment must differ < 0.6 x as much as the runner-up
